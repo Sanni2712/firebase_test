@@ -3,18 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <title>Sound Trigger Dashboard</title>
-
-<!-- Tailwind CDN -->
 <script src="https://cdn.tailwindcss.com"></script>
-
 </head>
+
 <body class="bg-slate-900 text-white min-h-screen flex items-center justify-center">
 
 <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md space-y-6">
 
-  <h1 class="text-2xl font-bold text-center">📢 effect Control Panel[test mode]</h1>
+  <h1 class="text-2xl font-bold text-center">📢 effect Control Panel [test mode]</h1>
 
-  <!-- Status Card -->
   <div class="bg-slate-700 p-4 rounded-xl space-y-3">
 
     <div class="flex justify-between">
@@ -34,13 +31,11 @@
 
   </div>
 
-  <!-- Trigger Button -->
   <button onclick="triggerSound()"
     class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition p-3 rounded-xl font-semibold">
-     Trigger Sound
+    Trigger Sound
   </button>
 
-  <!-- Refresh indicator -->
   <div class="text-center text-xs text-slate-400">
     Auto refresh every 2 seconds
   </div>
@@ -50,16 +45,16 @@
 <script>
 const BASE = "https://troll-lab-default-rtdb.asia-southeast1.firebasedatabase.app/soundSystem";
 
+let lastGoodSoundLoaded = null;
+let lastGoodSeen = null;
+
 async function fetchData() {
   try {
-    const r = await fetch(BASE + ".json");
+    const r = await fetch(BASE + ".json?v=" + Date.now()); // cache bust
     const data = await r.json();
-
     if (!data) return;
-
     updateStatus(data);
-
-  } catch (e) {
+  } catch {
     setOfflineUI();
   }
 }
@@ -71,31 +66,44 @@ function updateStatus(data) {
   if (data.lastSeen) {
     const last = new Date(data.lastSeen).getTime();
     online = (now - last) <= 5000;
-    document.getElementById("lastSeen").textContent = data.lastSeen;
   }
 
   const pcEl = document.getElementById("pcStatus");
-  pcEl.textContent = online ? "ONLINE" : "OFFLINE";
-  pcEl.className = online
-    ? "font-semibold text-green-400"
-    : "font-semibold text-red-400";
+
+  if (!online) {
+    pcEl.textContent = "OFFLINE";
+    pcEl.className = "font-semibold text-red-400";
+    return; // 🔴 stop here — do NOT overwrite other fields
+  }
+
+  // 🟢 ONLINE — update everything
+  pcEl.textContent = "ONLINE";
+  pcEl.className = "font-semibold text-green-400";
+
+  if (data.lastSeen) {
+    lastGoodSeen = data.lastSeen;
+    document.getElementById("lastSeen").textContent = data.lastSeen;
+  }
+
+  if (typeof data.soundLoaded === "boolean") {
+    lastGoodSoundLoaded = data.soundLoaded;
+  }
 
   const soundEl = document.getElementById("soundStatus");
-  if (online && data.soundLoaded === true) {
+
+  if (lastGoodSoundLoaded === true) {
     soundEl.textContent = "Loaded";
     soundEl.className = "text-green-400";
-  } else if (online) {
+  } else if (lastGoodSoundLoaded === false) {
     soundEl.textContent = "Missing";
     soundEl.className = "text-yellow-400";
-  } else {
-    soundEl.textContent = "Unknown";
-    soundEl.className = "text-slate-400";
   }
 }
 
 function setOfflineUI() {
-  document.getElementById("pcStatus").textContent = "OFFLINE";
-  document.getElementById("pcStatus").className = "font-semibold text-red-400";
+  const pcEl = document.getElementById("pcStatus");
+  pcEl.textContent = "OFFLINE";
+  pcEl.className = "font-semibold text-red-400";
 }
 
 async function triggerSound() {
