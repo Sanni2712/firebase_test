@@ -15,7 +15,7 @@
   </h1>
 
   <div class="text-center text-xs text-slate-400">
-    Dashboard version <span class="text-emerald-400 font-semibold">v1.01</span>
+    Dashboard version <span class="text-emerald-400 font-semibold">v1.02</span>
   </div>
 
   <div class="bg-slate-700 p-4 rounded-xl space-y-3">
@@ -52,8 +52,6 @@
 const BASE = "https://troll-lab-default-rtdb.asia-southeast1.firebasedatabase.app/soundSystem";
 
 let isOnline = false;
-let lastGoodSoundLoaded = null;
-let lastGoodSeen = null;
 
 async function fetchData() {
   try {
@@ -73,19 +71,23 @@ function updateStatus(data) {
   if (data.lastSeen) {
     const last = new Date(data.lastSeen).getTime();
     isOnline = (now - last) <= 5000;
+    document.getElementById("lastSeen").textContent = data.lastSeen;
   }
 
   const pcEl = document.getElementById("pcStatus");
+  const soundEl = document.getElementById("soundStatus");
   const btn = document.getElementById("triggerBtn");
 
   if (!isOnline) {
     pcEl.textContent = "OFFLINE";
     pcEl.className = "font-semibold text-red-400";
 
+    soundEl.textContent = "OFFLINE";
+    soundEl.className = "text-slate-400";
+
     btn.disabled = true;
     btn.className = "w-full bg-gray-600 cursor-not-allowed p-3 rounded-xl font-semibold";
-
-    return; // 🔴 stop — do not overwrite last known values
+    return;
   }
 
   // 🟢 ONLINE UI
@@ -95,35 +97,29 @@ function updateStatus(data) {
   btn.disabled = false;
   btn.className = "w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition p-3 rounded-xl font-semibold";
 
-  if (data.lastSeen) {
-    lastGoodSeen = data.lastSeen;
-    document.getElementById("lastSeen").textContent = data.lastSeen;
-  }
-
-  if (typeof data.soundLoaded === "boolean") {
-    lastGoodSoundLoaded = data.soundLoaded;
-  }
-
-  const soundEl = document.getElementById("soundStatus");
-
-  if (lastGoodSoundLoaded === true) {
+  if (data.soundLoaded === true) {
     soundEl.textContent = "Loaded";
     soundEl.className = "text-green-400";
-  } else if (lastGoodSoundLoaded === false) {
+  } else if (data.soundLoaded === false) {
     soundEl.textContent = "Missing";
     soundEl.className = "text-yellow-400";
+  } else {
+    soundEl.textContent = "Unknown";
+    soundEl.className = "text-slate-400";
   }
 }
 
 function setOfflineUI() {
   isOnline = false;
-  const pcEl = document.getElementById("pcStatus");
-  pcEl.textContent = "OFFLINE";
-  pcEl.className = "font-semibold text-red-400";
+  document.getElementById("pcStatus").textContent = "OFFLINE";
+  document.getElementById("pcStatus").className = "font-semibold text-red-400";
+
+  document.getElementById("soundStatus").textContent = "OFFLINE";
+  document.getElementById("soundStatus").className = "text-slate-400";
 }
 
 async function triggerSound() {
-  if (!isOnline) return; // 🚫 hard guard
+  if (!isOnline) return;
 
   await fetch(BASE + "/trigger.json", {
     method: "PUT",
