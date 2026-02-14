@@ -10,7 +10,13 @@
 
 <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md space-y-6">
 
-  <h1 class="text-2xl font-bold text-center">📢 effect Control Panel [test mode]</h1>
+  <h1 class="text-2xl font-bold text-center">
+    📢 effect Control Panel [test mode]
+  </h1>
+
+  <div class="text-center text-xs text-slate-400">
+    Dashboard version <span class="text-emerald-400 font-semibold">v1.01</span>
+  </div>
 
   <div class="bg-slate-700 p-4 rounded-xl space-y-3">
 
@@ -31,7 +37,7 @@
 
   </div>
 
-  <button onclick="triggerSound()"
+  <button id="triggerBtn" onclick="triggerSound()"
     class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition p-3 rounded-xl font-semibold">
     Trigger Sound
   </button>
@@ -45,12 +51,13 @@
 <script>
 const BASE = "https://troll-lab-default-rtdb.asia-southeast1.firebasedatabase.app/soundSystem";
 
+let isOnline = false;
 let lastGoodSoundLoaded = null;
 let lastGoodSeen = null;
 
 async function fetchData() {
   try {
-    const r = await fetch(BASE + ".json?v=" + Date.now()); // cache bust
+    const r = await fetch(BASE + ".json?v=" + Date.now());
     const data = await r.json();
     if (!data) return;
     updateStatus(data);
@@ -61,24 +68,32 @@ async function fetchData() {
 
 function updateStatus(data) {
   const now = Date.now();
-  let online = false;
+  isOnline = false;
 
   if (data.lastSeen) {
     const last = new Date(data.lastSeen).getTime();
-    online = (now - last) <= 5000;
+    isOnline = (now - last) <= 5000;
   }
 
   const pcEl = document.getElementById("pcStatus");
+  const btn = document.getElementById("triggerBtn");
 
-  if (!online) {
+  if (!isOnline) {
     pcEl.textContent = "OFFLINE";
     pcEl.className = "font-semibold text-red-400";
-    return; // 🔴 stop here — do NOT overwrite other fields
+
+    btn.disabled = true;
+    btn.className = "w-full bg-gray-600 cursor-not-allowed p-3 rounded-xl font-semibold";
+
+    return; // 🔴 stop — do not overwrite last known values
   }
 
-  // 🟢 ONLINE — update everything
+  // 🟢 ONLINE UI
   pcEl.textContent = "ONLINE";
   pcEl.className = "font-semibold text-green-400";
+
+  btn.disabled = false;
+  btn.className = "w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition p-3 rounded-xl font-semibold";
 
   if (data.lastSeen) {
     lastGoodSeen = data.lastSeen;
@@ -101,12 +116,15 @@ function updateStatus(data) {
 }
 
 function setOfflineUI() {
+  isOnline = false;
   const pcEl = document.getElementById("pcStatus");
   pcEl.textContent = "OFFLINE";
   pcEl.className = "font-semibold text-red-400";
 }
 
 async function triggerSound() {
+  if (!isOnline) return; // 🚫 hard guard
+
   await fetch(BASE + "/trigger.json", {
     method: "PUT",
     body: "true"
