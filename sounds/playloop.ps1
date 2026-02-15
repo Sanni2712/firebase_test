@@ -1,16 +1,25 @@
 # ---------------- CONFIG ----------------
-$audioPath = "C:\sounds\essential.mp3"
+$audioPath1 = "C:\sounds\essential.mp3"
+$audioPath2 = "C:\sounds\loud-ahh-chicken-on-tree.mp3"
+
 $base = "https://troll-lab-default-rtdb.asia-southeast1.firebasedatabase.app/soundSystem"
 # ----------------------------------------
 
-$triggerUrl  = "$base/trigger.json"
+$trigger1Url = "$base/trigger.json"
+$trigger2Url = "$base/trigger2.json"
+
 $statusUrl   = "$base/pcStatus.json"
-$soundUrl    = "$base/soundLoaded.json"
+$nameUrl     = "$base/PCname.json"
+
+$sound1Url   = "$base/soundLoaded.json"
+$sound2Url   = "$base/soundLoaded2.json"
 $lastSeenUrl = "$base/lastSeen.json"
+
+$pcName = $env:COMPUTERNAME
 
 Add-Type -AssemblyName presentationCore
 
-# ---- volume helper (only used when playing) ----
+# ---- volume helper ----
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -27,54 +36,76 @@ function Set-MaxVolume {
     }
 }
 
-# ---- media player ----
-$player = New-Object System.Windows.Media.MediaPlayer
-$player.Open([Uri]$audioPath)
-$player.Volume = 1.0
+# ---- players ----
+$player1 = New-Object System.Windows.Media.MediaPlayer
+$player2 = New-Object System.Windows.Media.MediaPlayer
+
+if (Test-Path $audioPath1) { $player1.Open([Uri]$audioPath1) }
+if (Test-Path $audioPath2) { $player2.Open([Uri]$audioPath2) }
+
 Start-Sleep -Milliseconds 500
 
-# mark online at start
+# ---- initial status ----
 Invoke-RestMethod $statusUrl -Method Put -ContentType "application/json" `
     -Body '"online"' | Out-Null
 
-# ---------------- MAIN LOOP ----------------
+Invoke-RestMethod $nameUrl -Method Put -ContentType "application/json" `
+    -Body ('"' + $pcName + '"') | Out-Null
+
+# ---------------- LOOP (1 second) ----------------
 while ($true) {
 
     try {
         $now = Get-Date
 
-        # ---- heartbeat ----
+        # heartbeat
         Invoke-RestMethod $lastSeenUrl -Method Put -ContentType "application/json" `
             -Body ('"' + $now.ToString("s") + '"') | Out-Null
 
-        # ---- online flag ----
+        # online flag
         Invoke-RestMethod $statusUrl -Method Put -ContentType "application/json" `
             -Body '"online"' | Out-Null
 
-        # ---- sound file status ----
-        $exists = Test-Path $audioPath
-        $jsonBool = if ($exists) { "true" } else { "false" }
+        # desktop name refresh
+        Invoke-RestMethod $nameUrl -Method Put -ContentType "application/json" `
+            -Body ('"' + $pcName + '"') | Out-Null
 
-        Invoke-RestMethod $soundUrl -Method Put -ContentType "application/json" `
-            -Body $jsonBool | Out-Null
+        # ---- sound file checks ----
+        $exists1 = Test-Path $audioPath1
+        $exists2 = Test-Path $audioPath2
 
-        # ---- trigger check (ONLY play path) ----
-        $flag = Invoke-RestMethod $triggerUrl -TimeoutSec 3
+        Invoke-RestMethod $sound1Url -Method Put -ContentType "application/json" `
+            -Body ($(if($exists1){"true"}else{"false"})) | Out-Null
 
-        if ($flag -eq $true -and $exists) {
+        Invoke-RestMethod $sound2Url -Method Put -ContentType "application/json" `
+            -Body ($(if($exists2){"true"}else{"false"})) | Out-Null
+
+        # ---- trigger 1 ----
+        $t1 = Invoke-RestMethod $trigger1Url -TimeoutSec 2
+        if ($t1 -eq $true -and $exists1) {
             Set-MaxVolume
-            $player.Position = [TimeSpan]::Zero
-            $player.Play()
+            $player1.Position = [TimeSpan]::Zero
+            $player1.Play()
 
-            # reset trigger
-            Invoke-RestMethod $triggerUrl -Method Put -ContentType "application/json" `
+            Invoke-RestMethod $trigger1Url -Method Put -ContentType "application/json" `
+                -Body "false" | Out-Null
+        }
+
+        # ---- trigger 2 ----
+        $t2 = Invoke-RestMethod $trigger2Url -TimeoutSec 2
+        if ($t2 -eq $true -and $exists2) {
+            Set-MaxVolume
+            $player2.Position = [TimeSpan]::Zero
+            $player2.Play()
+
+            Invoke-RestMethod $trigger2Url -Method Put -ContentType "application/json" `
                 -Body "false" | Out-Null
         }
 
     }
     catch {
-        # ignore network errors and continue
+        # ignore transient network errors
     }
 
-    Start-Sleep -Seconds 2
+    Start-Sleep -Seconds 1
 }

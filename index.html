@@ -10,8 +10,8 @@
 
 <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md space-y-6">
 
-<h1 class="text-2xl font-bold text-center">📢 Control Panel</h1>
-<div class="text-center text-xs text-slate-400">v1.03</div>
+<h1 id="pcTitle" class="text-2xl font-bold text-center"> -- </h1>
+<div class="text-center text-xs text-slate-400">v1.04</div>
 
 <div class="bg-slate-700 p-4 rounded-xl space-y-3">
 
@@ -66,6 +66,16 @@ online=(now-last)<=5000;
 document.getElementById("lastSeen").textContent=d.lastSeen;
 }
 
+const titleEl=document.getElementById("pcTitle");
+
+if(online && d.PCname){
+titleEl.textContent=d.PCname;
+titleEl.className="text-2xl font-bold text-center text-emerald-400";
+}else{
+titleEl.textContent="--";
+titleEl.className="text-2xl font-bold text-center";
+}
+
 document.getElementById("pcStatus").textContent=online?"ONLINE":"OFFLINE";
 document.getElementById("pcStatus").className=online?"text-green-400":"text-red-400";
 
@@ -77,8 +87,8 @@ b1.className=btnStyle(online);
 b2.className=btnStyle(online);
 
 if(!online){
-document.getElementById("s1").textContent="OFFLINE";
-document.getElementById("s2").textContent="OFFLINE";
+document.getElementById("s1").textContent=" ";
+document.getElementById("s2").textContent=" ";
 return;
 }
 
