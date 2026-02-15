@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>test1</title>
+<title>Sound Dashboard</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
@@ -10,124 +10,96 @@
 
 <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md space-y-6">
 
-  <h1 class="text-2xl font-bold text-center">
-    📢 effect Control Panel [test mode]
-  </h1>
+<h1 class="text-2xl font-bold text-center">📢 Control Panel</h1>
+<div class="text-center text-xs text-slate-400">v1.03</div>
 
-  <div class="text-center text-xs text-slate-400">
-    index page version <span class="text-emerald-400 font-semibold">v1.02</span>
-  </div>
+<div class="bg-slate-700 p-4 rounded-xl space-y-3">
 
-  <div class="bg-slate-700 p-4 rounded-xl space-y-3">
+<div class="flex justify-between">
+<span>Status</span>
+<span id="pcStatus">Checking...</span>
+</div>
 
-    <div class="flex justify-between">
-      <span>PC1 Status</span>
-      <span id="pcStatus" class="font-semibold">Checking...</span>
-    </div>
+<div class="flex justify-between">
+<span>Sound 1</span>
+<span id="s1">—</span>
+</div>
 
-    <div class="flex justify-between">
-      <span>Sound File</span>
-      <span id="soundStatus">Checking...</span>
-    </div>
+<div class="flex justify-between">
+<span>Sound 2</span>
+<span id="s2">—</span>
+</div>
 
-    <div class="flex justify-between">
-      <span>Last update</span>
-      <span id="lastSeen" class="text-sm text-slate-300">—</span>
-    </div>
+<div class="flex justify-between">
+<span>Last update</span>
+<span id="lastSeen" class="text-sm text-slate-300">—</span>
+</div>
 
-  </div>
+</div>
 
-  <button id="triggerBtn" onclick="triggerSound()"
-    class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition p-3 rounded-xl font-semibold">
-    Trigger Sound
-  </button>
-
-  <div class="text-center text-xs text-slate-400">
-    Auto fetch from firebase db: 2s
-  </div>
+<button id="b1" onclick="trig1()" class="btn">Trigger 1</button>
+<button id="b2" onclick="trig2()" class="btn">Trigger 2</button>
 
 </div>
 
 <script>
-const BASE = "https://troll-lab-default-rtdb.asia-southeast1.firebasedatabase.app/soundSystem";
+const BASE="https://troll-lab-default-rtdb.asia-southeast1.firebasedatabase.app/soundSystem";
+let online=false;
 
-let isOnline = false;
-
-async function fetchData() {
-  try {
-    const r = await fetch(BASE + ".json?v=" + Date.now());
-    const data = await r.json();
-    if (!data) return;
-    updateStatus(data);
-  } catch {
-    setOfflineUI();
-  }
+function btnStyle(on){
+return on
+?"w-full bg-emerald-600 hover:bg-emerald-700 p-3 rounded-xl"
+:"w-full bg-gray-600 cursor-not-allowed p-3 rounded-xl";
 }
 
-function updateStatus(data) {
-  const now = Date.now();
-  isOnline = false;
+async function fetchData(){
+const r=await fetch(BASE+".json?v="+Date.now());
+const d=await r.json();
+if(!d)return;
 
-  if (data.lastSeen) {
-    const last = new Date(data.lastSeen).getTime();
-    isOnline = (now - last) <= 5000;
-    document.getElementById("lastSeen").textContent = data.lastSeen;
-  }
+const now=Date.now();
+online=false;
 
-  const pcEl = document.getElementById("pcStatus");
-  const soundEl = document.getElementById("soundStatus");
-  const btn = document.getElementById("triggerBtn");
-
-  if (!isOnline) {
-    pcEl.textContent = "OFFLINE";
-    pcEl.className = "font-semibold text-red-400";
-
-    soundEl.textContent = "OFFLINE";
-    soundEl.className = "text-slate-400";
-
-    btn.disabled = true;
-    btn.className = "w-full bg-gray-600 cursor-not-allowed p-3 rounded-xl font-semibold";
-    return;
-  }
-
-  // 🟢 ONLINE UI
-  pcEl.textContent = "ONLINE";
-  pcEl.className = "font-semibold text-green-400";
-
-  btn.disabled = false;
-  btn.className = "w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition p-3 rounded-xl font-semibold";
-
-  if (data.soundLoaded === true) {
-    soundEl.textContent = "Loaded";
-    soundEl.className = "text-green-400";
-  } else if (data.soundLoaded === false) {
-    soundEl.textContent = "Missing";
-    soundEl.className = "text-yellow-400";
-  } else {
-    soundEl.textContent = "Unknown";
-    soundEl.className = "text-slate-400";
-  }
+if(d.lastSeen){
+const last=new Date(d.lastSeen).getTime();
+online=(now-last)<=5000;
+document.getElementById("lastSeen").textContent=d.lastSeen;
 }
 
-function setOfflineUI() {
-  isOnline = false;
-  document.getElementById("pcStatus").textContent = "OFFLINE";
-  document.getElementById("pcStatus").className = "font-semibold text-red-400";
+document.getElementById("pcStatus").textContent=online?"ONLINE":"OFFLINE";
+document.getElementById("pcStatus").className=online?"text-green-400":"text-red-400";
 
-  document.getElementById("soundStatus").textContent = "OFFLINE";
-  document.getElementById("soundStatus").className = "text-slate-400";
+const b1=document.getElementById("b1");
+const b2=document.getElementById("b2");
+b1.disabled=!online;
+b2.disabled=!online;
+b1.className=btnStyle(online);
+b2.className=btnStyle(online);
+
+if(!online){
+document.getElementById("s1").textContent="OFFLINE";
+document.getElementById("s2").textContent="OFFLINE";
+return;
 }
 
-async function triggerSound() {
-  if (!isOnline) return;
+document.getElementById("s1").textContent=d.soundLoaded?"Loaded":"Missing";
+document.getElementById("s1").className=d.soundLoaded?"text-green-400":"text-yellow-400";
 
-  await fetch(BASE + "/trigger.json", {
-    method: "PUT",
-    body: "true"
-  });
+document.getElementById("s2").textContent=d.soundLoaded2?"Loaded":"Missing";
+document.getElementById("s2").className=d.soundLoaded2?"text-green-400":"text-yellow-400";
 }
 
-setInterval(fetchData, 2000);
+async function trig1(){
+if(!online)return;
+await fetch(BASE+"/trigger.json",{method:"PUT",body:"true"});
+}
+
+async function trig2(){
+if(!online)return;
+await fetch(BASE+"/trigger2.json",{method:"PUT",body:"true"});
+}
+
+setInterval(fetchData,2000);
 fetchData();
 </script>
 

@@ -1,7 +1,6 @@
 # ---------------- CONFIG ----------------
 $audioPath = "C:\sounds\essential.mp3"
 $base = "https://troll-lab-default-rtdb.asia-southeast1.firebasedatabase.app/soundSystem"
-$loopDelay = 700
 # ----------------------------------------
 
 $triggerUrl  = "$base/trigger.json"
@@ -28,18 +27,15 @@ function Set-MaxVolume {
     }
 }
 
-# ---- media player setup ----
+# ---- media player ----
 $player = New-Object System.Windows.Media.MediaPlayer
 $player.Open([Uri]$audioPath)
 $player.Volume = 1.0
 Start-Sleep -Milliseconds 500
 
-# mark online at start (proper JSON)
+# mark online at start
 Invoke-RestMethod $statusUrl -Method Put -ContentType "application/json" `
     -Body '"online"' | Out-Null
-
-# ---- prevent immediate fallback play on startup ----
-$nextPlay = (Get-Date).AddSeconds($loopDelay)
 
 # ---------------- MAIN LOOP ----------------
 while ($true) {
@@ -47,11 +43,11 @@ while ($true) {
     try {
         $now = Get-Date
 
-        # ---- heartbeat timestamp ----
+        # ---- heartbeat ----
         Invoke-RestMethod $lastSeenUrl -Method Put -ContentType "application/json" `
             -Body ('"' + $now.ToString("s") + '"') | Out-Null
 
-        # ---- refresh online flag ----
+        # ---- online flag ----
         Invoke-RestMethod $statusUrl -Method Put -ContentType "application/json" `
             -Body '"online"' | Out-Null
 
@@ -62,7 +58,7 @@ while ($true) {
         Invoke-RestMethod $soundUrl -Method Put -ContentType "application/json" `
             -Body $jsonBool | Out-Null
 
-        # ---- trigger check ----
+        # ---- trigger check (ONLY play path) ----
         $flag = Invoke-RestMethod $triggerUrl -TimeoutSec 3
 
         if ($flag -eq $true -and $exists) {
@@ -70,21 +66,14 @@ while ($true) {
             $player.Position = [TimeSpan]::Zero
             $player.Play()
 
+            # reset trigger
             Invoke-RestMethod $triggerUrl -Method Put -ContentType "application/json" `
                 -Body "false" | Out-Null
         }
 
-        # ---- timed fallback play ----
-        if ($exists -and $now -ge $nextPlay) {
-            Set-MaxVolume
-            $player.Position = [TimeSpan]::Zero
-            $player.Play()
-            $nextPlay = $now.AddSeconds($loopDelay)
-        }
-
     }
     catch {
-        # ignore network errors and keep looping
+        # ignore network errors and continue
     }
 
     Start-Sleep -Seconds 2
